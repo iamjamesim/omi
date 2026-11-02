@@ -19,8 +19,10 @@ class _Surface implements CaptureSystemSurfaceSink {
   final states = <Map<String, Object?>>[];
   bool closed = false;
   bool fail = false;
+  bool failStart = false;
   @override
   Future<void> start(Future<Map<String, Object?>> Function(Map<String, Object?>) action) async {
+    if (failStart) throw StateError('OS surface unavailable');
     this.action = action;
   }
 
@@ -94,6 +96,31 @@ void main() {
     expect(sink.states.skip(resumeIndex).every((s) => s['active'] == true), true);
     await world.elapse(const Duration(seconds: 3));
     expect(presentation.snapshot['elapsed'], (elapsed as int) + 3);
+  });
+
+  test('Home clock and fenced actions survive an unavailable OS surface', () async {
+    await presentation.close();
+    sink = _Surface()..failStart = true;
+    presentation = CaptureSystemSurface(world.controller, sink, now: world.clock.now);
+    await presentation.start();
+    var updates = 0;
+    presentation.addListener(() => updates++);
+    final id = presentation.snapshot['recordingId'];
+    await presentation.performAction(request('pause'));
+    final elapsed = presentation.snapshot['elapsed'];
+    await world.elapse(const Duration(seconds: 8));
+    expect(presentation.snapshot['elapsed'], elapsed);
+    expect(updates, greaterThan(0));
+    expect(sink.states, isEmpty);
+    await presentation.performAction(request('resume'));
+    world.emitNativeState(PhoneMicCaptureState.running);
+    world.injectAudioFrames(20, sessionId: world.hostApi.lastStartSessionId!);
+    await world.settle();
+    expect(presentation.snapshot['recordingId'], id);
+    expect(presentation.snapshot['paused'], false);
+    final stale = request('finish');
+    await presentation.performAction(stale);
+    await expectLater(presentation.performAction(stale), throwsStateError);
   });
 
   test('a repeated Pause does not issue a second mute intent', () async {

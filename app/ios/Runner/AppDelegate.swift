@@ -219,6 +219,7 @@ final class QuickActionsIconPatcher: NSObject {
       self.schedulePeriodicSync()
       result(nil)
     }
+    HomeCaptureControlsRegistration.register(with: engineBridge.pluginRegistry, messenger: messenger)
     SiriBridge.shared.attach(messenger: messenger)
     if #available(iOS 16.1, *) {
       liveActivityManager = LiveActivityManager(messenger: messenger)

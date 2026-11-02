@@ -9,12 +9,20 @@ import 'package:omi/utils/l10n_extensions.dart';
 /// title with a status dot (or a spinner while processing). The state is announced when it
 /// changes.
 class ConversationStateAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const ConversationStateAppBar(
-      {super.key, required this.state, this.backKey, this.bufferingFor, this.sourceLabel, this.showStatus = true});
+  const ConversationStateAppBar({
+    super.key,
+    required this.state,
+    this.backKey,
+    this.bufferingFor,
+    this.sourceLabel,
+    this.showStatus = true,
+    this.showCloseButton = false,
+  });
 
   /// What is recording ("Pendant", "Phone mic"), shown after the state: "Listening · Pendant".
   final String? sourceLabel;
   final bool showStatus;
+  final bool showCloseButton;
 
   /// The state, named from the shared table in `capture_state_labels.dart` so the live page, the
   /// processing page and the conversation list's capture card never give one moment two names.
@@ -41,17 +49,17 @@ class ConversationStateAppBar extends StatelessWidget implements PreferredSizeWi
       _ => Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _isLive(state) ? OmiColors.danger : OmiColors.warning,
-          ),
+          decoration:
+              BoxDecoration(shape: BoxShape.circle, color: _isLive(state) ? OmiColors.danger : OmiColors.warning),
         ),
     };
     return AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: OmiColors.surface0,
       centerTitle: true,
-      leading: Center(child: OmiBackButton.circled(key: backKey)),
+      leading: Center(
+        child: showCloseButton ? OmiCloseButton.circled(key: backKey) : OmiBackButton.circled(key: backKey),
+      ),
       title: !showStatus
           ? Text(sourceLabel ?? '', style: OmiType.headline)
           : Semantics(
@@ -67,7 +75,9 @@ class ConversationStateAppBar extends StatelessWidget implements PreferredSizeWi
                       sourceLabel == null
                           ? captureStateLabel(context.l10n, state, bufferingFor: bufferingFor)
                           : context.l10n.captureStatusWithSource(
-                              captureStateLabel(context.l10n, state, bufferingFor: bufferingFor), sourceLabel!),
+                              captureStateLabel(context.l10n, state, bufferingFor: bufferingFor),
+                              sourceLabel!,
+                            ),
                       style: sourceLabel == null ? OmiType.headline : OmiType.headline.copyWith(height: 1.15),
                       maxLines: sourceLabel == null ? 1 : 2,
                       overflow: TextOverflow.ellipsis,

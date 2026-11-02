@@ -1,0 +1,6 @@
+{
+  "change": "Recording controls expand in place with pause, elapsed time and End, and open the live transcript in a sheet.",
+  "platforms": [
+    "ios"
+  ]
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:omi/ui/components/omi_icon_button.dart';
 import 'package:omi/ui/omi_tokens.dart';
+import 'package:omi/ui/home_header_glass.dart';
 
 /// Smallest comfortable touch target. Same value as [kOmiMinTapTarget]; kept for existing callers.
 const double kMinTapTarget = kOmiMinTapTarget;
@@ -38,12 +39,15 @@ class HeaderCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final button = OmiIconButton.filled(
-      icon: icon,
-      label: semanticLabel,
-      onPressed: onTap,
-      fillColor: color ?? OmiColors.surface1,
-      diameter: diameter,
+    final button = HomeHeaderGlassTarget(
+      insets: EdgeInsets.all((kMinTapTarget - diameter) / 2),
+      builder: (glass) => OmiIconButton.filled(
+        icon: icon,
+        label: semanticLabel,
+        onPressed: onTap,
+        fillColor: glass ? Colors.transparent : color ?? OmiColors.surface1,
+        diameter: diameter,
+      ),
     );
     if (badgeCount <= 0) return button;
     return Stack(

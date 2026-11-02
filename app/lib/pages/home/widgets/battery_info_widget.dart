@@ -25,6 +25,7 @@ import 'package:omi/pages/phone_calls/active_call_page.dart';
 import 'package:omi/providers/phone_call_provider.dart';
 import 'package:omi/backend/schema/phone_call.dart';
 import 'package:omi/ui/ui.dart';
+import 'package:omi/ui/home_header_glass.dart';
 import 'package:omi/widgets/capture_sources.dart';
 import 'package:omi/widgets/header_circle_button.dart';
 
@@ -247,12 +248,17 @@ class _DevicePill extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Container(
-          height: 36,
-          margin: _pillTargetMargin,
-          padding: const EdgeInsets.symmetric(horizontal: OmiSpacing.sm),
-          decoration: BoxDecoration(color: OmiColors.surface1, borderRadius: OmiRadius.pillAll),
-          child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: children),
+        child: HomeHeaderGlassTarget(
+          insets: _pillTargetMargin,
+          builder: (glass) => Container(
+            height: 36,
+            margin: _pillTargetMargin,
+            padding: const EdgeInsets.symmetric(horizontal: OmiSpacing.sm),
+            decoration:
+                BoxDecoration(color: glass ? Colors.transparent : OmiColors.surface1, borderRadius: OmiRadius.pillAll),
+            child:
+                Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: children),
+          ),
         ),
       ),
     );
@@ -264,7 +270,11 @@ class _DevicePill extends StatelessWidget {
 /// are announced as the long-press action, and a one-time tip points them out after the first
 /// recording.
 class HomeRecordButton extends StatefulWidget {
-  const HomeRecordButton({super.key});
+  const HomeRecordButton({super.key, this.presentation, this.openDetailsOnStart = true});
+
+  final bool openDetailsOnStart;
+
+  final Widget Function(Future<void> Function() start, VoidCallback? options, VoidCallback didFinish)? presentation;
 
   @override
   State<HomeRecordButton> createState() => _HomeRecordButtonState();
@@ -356,6 +366,11 @@ class _HomeRecordButtonState extends State<HomeRecordButton> {
     await _startPhoneRecording(context);
   }
 
+  void _didFinish() {
+    PlatformManager.instance.analytics.phoneMicRecordingStopped();
+    if (mounted) _maybeShowOptionsTip(context);
+  }
+
   Future<void> _startPhoneRecording(BuildContext context) async {
     final captureProvider = context.read<CaptureProvider>();
     OmiHaptics.medium();
@@ -363,8 +378,7 @@ class _HomeRecordButtonState extends State<HomeRecordButton> {
       // The phone recording is this button's own: finish it (processed, except Transcribe Later,
       // whose local file is finalized on stop), then any pendant it paused resumes.
       await captureProvider.finishCapture();
-      PlatformManager.instance.analytics.phoneMicRecordingStopped();
-      if (context.mounted) _maybeShowOptionsTip(context);
+      _didFinish();
       return;
     }
     if (captureProvider.isPendantBatchRecording) {
@@ -391,7 +405,7 @@ class _HomeRecordButtonState extends State<HomeRecordButton> {
       }
       return;
     }
-    if (context.mounted) {
+    if (context.mounted && widget.openDetailsOnStart) {
       routeToPage(context,
           LiveEpisodePage(topConversationId: captureProvider.topConversationId, initialTab: LiveEpisodeTab.transcript));
     }
@@ -399,6 +413,19 @@ class _HomeRecordButtonState extends State<HomeRecordButton> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.presentation != null) {
+      return Selector<CaptureProvider, bool>(
+        selector: (_, capture) =>
+            PhoneCallsFeature.visible &&
+            capture.liveCaptureSource != 'phone' &&
+            capture.recordingState != RecordingState.initialising,
+        builder: (context, canShowOptions, _) => widget.presentation!(
+          () => _startRecording(context),
+          canShowOptions ? () => _showRecordOptions(context) : null,
+          _didFinish,
+        ),
+      );
+    }
     return Consumer<CaptureProvider>(
       builder: (context, captureProvider, _) {
         // The phone recording is this button's own (live or paused); anything else is idle here.

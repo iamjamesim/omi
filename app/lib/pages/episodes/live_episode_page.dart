@@ -49,11 +49,13 @@ class LiveEpisodePage extends StatefulWidget {
     this.topConversationId,
     this.rejectSpeaker,
     this.initialTab = LiveEpisodeTab.summary,
+    this.presentedAsSheet = false,
   });
 
   final String? topConversationId;
   final SpeakerRejectionCall? rejectSpeaker;
   final LiveEpisodeTab initialTab;
+  final bool presentedAsSheet;
 
   @override
   State<LiveEpisodePage> createState() => LiveEpisodePageState();
@@ -163,6 +165,7 @@ class LiveEpisodePageState extends State<LiveEpisodePage> with SingleTickerProvi
     return Scaffold(
       backgroundColor: OmiColors.surface0,
       appBar: CaptureWedgeAppBar(
+        showCloseButton: widget.presentedAsSheet,
         showStatus: effectivelyMuted || provider.pendantCaptureVerified,
         state: EpisodePresentation.displayState(provider),
         bufferingFor: provider.customSttBufferingDuration,
@@ -220,7 +223,9 @@ class LiveEpisodePageState extends State<LiveEpisodePage> with SingleTickerProvi
         backgroundColor: OmiColors.surface0,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        leading: const Center(child: OmiBackButton.circled()),
+        leading: Center(
+          child: widget.presentedAsSheet ? const OmiCloseButton.circled() : const OmiBackButton.circled(),
+        ),
         titleSpacing: 0,
         actions: [
           if (canPause)
@@ -634,10 +639,7 @@ class _OnThisPhoneTag extends StatelessWidget {
       key: const Key('episode_on_this_phone_tag'),
       padding: const EdgeInsets.symmetric(horizontal: OmiSpacing.xs, vertical: 3),
       decoration: BoxDecoration(color: OmiColors.surface0, borderRadius: OmiRadius.pillAll),
-      child: Text(
-        context.l10n.episodeOnThisPhone,
-        style: OmiType.footnote.copyWith(color: OmiColors.textTertiary),
-      ),
+      child: Text(context.l10n.episodeOnThisPhone, style: OmiType.footnote.copyWith(color: OmiColors.textTertiary)),
     );
   }
 }

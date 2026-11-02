@@ -52,6 +52,7 @@ class ChatPage extends StatefulWidget {
   final String? autoMessage;
   final String? initialDraft;
   final bool autoStartVoice;
+  final bool focusInputOnOpen;
   final ChatPageContext? initialChatContext;
 
   const ChatPage({
@@ -60,6 +61,7 @@ class ChatPage extends StatefulWidget {
     this.autoMessage,
     this.initialDraft,
     this.autoStartVoice = false,
+    this.focusInputOnOpen = false,
     this.initialChatContext,
   });
 
@@ -150,6 +152,10 @@ class ChatPageState extends State<ChatPage> with AutomaticKeepAliveClientMixin, 
         _runLater(const Duration(milliseconds: 300), () {
           context.read<VoiceRecorderProvider>().startRecording();
         });
+      } else if (_isInitialLoad && widget.focusInputOnOpen) {
+        // Home's explicit text-entry action opens the keyboard with the sheet.
+        // This runs once, after the input is mounted, and never steals voice focus.
+        if (!context.read<VoiceRecorderProvider>().isActive) textFieldFocusNode.requestFocus();
       } else if (_isInitialLoad && widget.initialDraft != null) {
         // Auto-focus the text field only on initial load, not on app switches
         _runLater(const Duration(milliseconds: 300), () {

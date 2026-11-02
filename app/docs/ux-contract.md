@@ -325,6 +325,43 @@ guidance.
 - Motion honours Reduce Motion (`OmiMotion.of`); live status changes (toasts, recording state) are
   announced (`OmiFeedback` marks its text as a live region).
 
+
+### Home native capture controls (iOS 26+)
+
+`ui/home_capture_bar.dart` owns Home's bottom control presentation. It hosts
+`ios/Runner/HomeCaptureControls.swift` for native Liquid Glass, SF Symbols,
+Dynamic Type and interruptible SwiftUI geometry/content animations. The native
+view receives localized labels and canonical capture snapshots; it never owns
+capture state. Ask opens the existing text chat sheet and focuses its input after mounting. Voice entry retains microphone focus. Record reuses
+`HomeRecordButton`'s call/pendant/batch policy and expands inline after a successful
+phone stream start. Tapping the expanded capsule opens Transcript; Pause and End
+remain independent sibling controls. The native pill replaces Home's duplicate streaming status row
+(including the episode row); calls, batch information and setup failures retain their
+existing surfaces. Older platforms keep the streaming row. Pause,
+Resume and End use `CaptureSystemSurface.performAction`, including recording
+identity and conversation-revision fencing. The timer and middle space open the
+existing live episode's Transcript tab; Pause/Resume and End are sibling buttons,
+so neither opens detail. On iOS, Home presents this detail with UIKit's
+`UISheetPresentationController` at the large detent, including the system grabber and interactive
+dismissal. The same Flutter view controller is presented directly so UIKit supplies the sheet bounds and
+safe area; there is no second engine or capture owner. The Home snapshot retains its original
+point size while UIKit resizes the background card. On dismissal, Home builds under a cover;
+the native first-render callback releases that cover after restoring the full-window controller. Dismissal keeps the live detail visible until the
+native transition finishes. Other platforms retain the ordinary page route.
+Returning from detail preserves capture and elapsed time.
+Detail taps are identity-fenced and deduplicated until the route closes. Transcribe
+Later retains its existing informational card rather than opening an empty live
+transcript. Its lifetime-scoped clock is shared
+with the Live Activity, freezes through pauses, and survives Home remounts.
+Older iOS and Android retain the Flutter controls.
+
+The default row uses 64pt controls, a 12pt inter-pill gap and a neutral filled
+End action inset by 4pt. At XXL and larger Dynamic Type, controls stack and grow
+with system type; Flutter accepts the native measured height. Content stays at
+its expanded size behind a clipped, spring-driven shell. Content fades overlap
+geometry changes (125ms out, 200ms in with a 50ms delay); Reduce Motion removes
+geometry/press scaling and uses 150ms fades. No animation lock blocks retargeting.
+
 ## Adding to this contract
 
 Changing a rule here is a product decision: update the primitive, migrate its callers in the same PR,
@@ -332,3 +369,17 @@ and add or tighten a rule in `check_mobile_ux_contract.py` (with a failing case 
 `test_check_mobile_ux_contract.py`) so the old pattern cannot come back.
 
 Closed episode headers use `OmiDateFormat.weekdayDate` with `timeRange` and `OmiDuration.compact`; their Home rows reuse `ConversationListItem`.
+
+When the Flutter chat sheet covers native glass, `NativeGlassOverlay` substitutes
+an image of the control and keeps its platform view mounted offstage. The sheet
+blurs that image, avoiding a second native backdrop filter and its rectangular
+edges. Live glass returns only after the route's reverse transition and the
+frame removing its blur complete. Cancelled dismiss drags keep the snapshot;
+nested sheets release it only when the last sheet has finished. Capture and its
+clock continue independently throughout.
+
+Home's device pill and top icon buttons share one native glass background group
+on iOS 26+. Flutter still lays out and owns every action, label, badge and 44pt
+touch target. The material follows measured painted bounds (36pt icon circles)
+rather than duplicating header layout in SwiftUI. Both glass groups use the same
+snapshot handoff when chat or Search covers them. Older platforms retain fills.

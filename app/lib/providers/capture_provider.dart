@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:omi/services/capture/capture_controller.dart';
+import 'package:omi/services/capture/capture_system_surface.dart';
 import 'package:omi/services/capture/local_segment_store.dart';
 import 'package:omi/utils/logger.dart';
 
@@ -39,6 +40,10 @@ class CaptureProvider extends CaptureController {
     addListener(_persistLiveSegments);
     lifetime.own(() => removeListener(_persistLiveSegments));
   }
+
+  /// One lifetime-scoped presentation clock shared by Home and the Live Activity.
+  /// CaptureController remains the authority for every recording action.
+  CaptureSystemSurface? homeControls;
 
   final LocalSegmentStore localSegmentStore;
 

@@ -12,6 +12,12 @@ import 'package:omi/providers/speaker_tag_prompts_provider.dart';
 import 'package:omi/pages/apps/providers/add_app_provider.dart';
 import 'package:omi/pages/home/home_navigation.dart';
 import 'package:omi/pages/home/page.dart';
+import 'package:omi/pages/conversations/widgets/live_capture_card.dart';
+import 'package:omi/widgets/home_bottom_bar.dart';
+import 'package:omi/utils/enums.dart';
+import 'package:omi/pages/episodes/live_episode_page.dart';
+import 'package:omi/pages/chat/page.dart';
+import 'package:omi/ui/home_capture_bar.dart';
 import 'package:omi/providers/action_items_provider.dart';
 import 'package:omi/providers/announcement_provider.dart';
 import 'package:omi/providers/app_provider.dart';
@@ -77,6 +83,66 @@ void main() {
 
     expect(handled, isTrue, reason: 'the shell consumed back instead of leaving the app');
     expect(home.selectedIndex, 0);
+    expect(find.byType(HomePage), findsOneWidget);
+    await _disposeHomePage(tester);
+  });
+
+  testWidgets('native controls replace the streaming status row; Flutter fallback keeps it', (tester) async {
+    await _pumpHomePage(tester);
+    final home = tester.element(find.byType(HomePage));
+    final capture = home.read<CaptureProvider>();
+    capture.recordingState = RecordingState.record;
+    capture.notifyListeners();
+    await tester.pump();
+    expect(find.byType(LiveCaptureCard), findsOneWidget);
+
+    final barContext = tester.element(find.byType(HomeCaptureBar));
+    HomeChatBarLayout.updateNativeControls(barContext, true);
+    await tester.pump();
+    expect(find.byType(LiveCaptureCard), findsNothing);
+
+    HomeChatBarLayout.updateNativeControls(barContext, false);
+    await tester.pump();
+    expect(find.byType(LiveCaptureCard), findsOneWidget);
+    await _disposeHomePage(tester);
+  });
+
+  testWidgets('Home Ask opens the real chat sheet and returns to Home', (tester) async {
+    await _pumpHomePage(tester);
+    final bar = tester.widget<HomeCaptureBar>(find.byType(HomeCaptureBar));
+    bar.onAsk();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(ChatPage), findsOneWidget);
+    final chat = tester.state<ChatPageState>(find.byType(ChatPage));
+    expect(chat.textFieldFocusNode.hasFocus, isTrue);
+    expect(tester.testTextInput.isVisible, isTrue);
+    Navigator.of(tester.element(find.byType(ChatPage))).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(HomePage), findsOneWidget);
+    await _disposeHomePage(tester);
+  });
+
+  testWidgets('Home recording detail opens Transcript and Back leaves capture unchanged', (tester) async {
+    await _pumpHomePage(tester);
+    final home = tester.element(find.byType(HomePage));
+    final capture = home.read<CaptureProvider>();
+    final state = capture.recordingState;
+    final identity = capture.activeRecordingId;
+    final bar = tester.widget<HomeCaptureBar>(find.byType(HomeCaptureBar));
+    final closed = bar.onRecordingDetails();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    final page = tester.widget<LiveEpisodePage>(find.byType(LiveEpisodePage));
+    expect(page.initialTab, LiveEpisodeTab.transcript);
+    expect(capture.recordingState, state);
+    Navigator.of(tester.element(find.byType(LiveEpisodePage))).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await closed;
+    expect(capture.recordingState, state);
+    expect(capture.activeRecordingId, identity);
     expect(find.byType(HomePage), findsOneWidget);
     await _disposeHomePage(tester);
   });
@@ -152,9 +218,8 @@ List<SingleChildWidget> _homeProviders() {
     ChangeNotifierProvider(create: (_) => LocaleProvider()),
     // Home embeds the conversation list; its speaker-tag card fetches through this seam, so no I/O.
     ChangeNotifierProvider(
-      create: (_) => SpeakerTagPromptsProvider(
-        fetchPrompts: () async => const ApiSuccess(GeneratedSpeakerTagPromptsResponse()),
-      ),
+      create: (_) =>
+          SpeakerTagPromptsProvider(fetchPrompts: () async => const ApiSuccess(GeneratedSpeakerTagPromptsResponse())),
     ),
   ];
 }

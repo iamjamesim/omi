@@ -73,6 +73,10 @@ import 'package:omi/widgets/header_circle_button.dart';
 import 'package:omi/pages/onboarding/interactive_device_onboarding/interactive_device_onboarding_wrapper.dart';
 import 'package:omi/services/sockets/listen_client_state.dart';
 import 'package:omi/ui/ui.dart';
+import 'package:omi/ui/navigation/native_recording_sheet.dart';
+import 'package:omi/ui/home_capture_bar.dart';
+import 'package:omi/ui/home_header_glass.dart';
+import 'package:omi/pages/episodes/live_episode_page.dart';
 import 'home_deep_links.dart';
 import 'home_navigation.dart';
 import 'home_prompt_gate.dart';
@@ -847,99 +851,85 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           builder: (context, selectedIndex, _) {
             final onHome = selectedIndex == HomeProvider.homeTab;
             // D6: Android back on Tasks returns to Home before it leaves the app.
-            return PopScope(
-              canPop: onHome,
-              onPopInvokedWithResult: (didPop, _) {
-                if (didPop || onHome) return;
-                OmiHaptics.selection();
-                context.read<HomeProvider>().setIndex(HomeProvider.homeTab);
-                _schedulePageInitialization(HomeProvider.homeTab);
-              },
-              child: Scaffold(
-                backgroundColor: OmiColors.surface0,
-                resizeToAvoidBottomInset: false,
-                appBar: _buildAppBar(context, onHome),
-                body: GestureDetector(
-                  onTap: () => primaryFocus?.unfocus(),
-                  child: Stack(
-                    children: [
-                      Column(
-                        children: [
-                          HomeTabSwitcher(
-                            trailing: onHome ? null : _buildTasksActions(context),
-                            onTabTap: (index, isRepeat) {
-                              if (index == HomeProvider.tasksTab) {
-                                unawaited(context.read<ActionItemsProvider>().forceRefreshActionItems());
-                              }
-                              if (isRepeat) {
-                                _scrollToTop(index);
-                              } else {
-                                // Change pages immediately. If background prewarming has not
-                                // finished, the destination paints a skeleton for one frame.
-                                context.read<HomeProvider>().setIndex(index);
-                                _schedulePageInitialization(index);
-                              }
-                            },
-                          ),
-                          if (onHome)
-                            Selector<ConversationProvider, (DateTime?, DateTime?)>(
-                              selector: (_, provider) => (provider.selectedStartDate, provider.selectedEndDate),
-                              builder: (context, range, _) {
-                                final start = range.$1;
-                                if (start == null) return const SizedBox.shrink();
-                                final provider = context.read<ConversationProvider>();
-                                return Padding(
-                                  padding: const EdgeInsets.fromLTRB(OmiSpacing.md, 0, OmiSpacing.md, OmiSpacing.xs),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: OmiDateFilterChip(
-                                      key: const ValueKey('home_date_filter'),
-                                      start: start,
-                                      end: range.$2,
-                                      onClear: () => unawaited(provider.clearDateFilter()),
-                                    ),
-                                  ),
-                                );
+            return HomeChatBarLayout(
+              child: PopScope(
+                canPop: onHome,
+                onPopInvokedWithResult: (didPop, _) {
+                  if (didPop || onHome) return;
+                  OmiHaptics.selection();
+                  context.read<HomeProvider>().setIndex(HomeProvider.homeTab);
+                  _schedulePageInitialization(HomeProvider.homeTab);
+                },
+                child: Scaffold(
+                  backgroundColor: OmiColors.surface0,
+                  resizeToAvoidBottomInset: false,
+                  appBar: _buildAppBar(context, onHome),
+                  body: GestureDetector(
+                    onTap: () => primaryFocus?.unfocus(),
+                    child: Stack(
+                      children: [
+                        Column(
+                          children: [
+                            HomeTabSwitcher(
+                              trailing: onHome ? null : _buildTasksActions(context),
+                              onTabTap: (index, isRepeat) {
+                                if (index == HomeProvider.tasksTab) {
+                                  unawaited(context.read<ActionItemsProvider>().forceRefreshActionItems());
+                                }
+                                if (isRepeat) {
+                                  _scrollToTop(index);
+                                } else {
+                                  // Change pages immediately. If background prewarming has not
+                                  // finished, the destination paints a skeleton for one frame.
+                                  context.read<HomeProvider>().setIndex(index);
+                                  _schedulePageInitialization(index);
+                                }
                               },
                             ),
-                          // Home shows an active call in its capture row; Tasks gets the slim bar.
-                          if (!onHome) const ActiveCallTopBar(),
-                          Expanded(
-                            child: IndexedStack(index: selectedIndex, children: _buildPages(selectedIndex)),
-                          ),
-                        ],
-                      ),
-                      if (onHome)
-                        Consumer<HomeProvider>(
-                          builder: (context, home, child) {
-                            if (home.isChatFieldFocused || home.isMemoriesSearchFieldFocused) {
-                              return const SizedBox.shrink();
-                            }
-                            return child!;
-                          },
-                          child: Stack(
-                            children: [
-                              const HomeChatBarBackdrop(),
-                              Positioned(
-                                left: 16,
-                                right: 16,
-                                bottom: homeChatBarOffset(context),
-                                child: Row(
-                                  children: [
-                                    Expanded(child: _buildChatBar(context)),
-                                    const SizedBox(width: 10),
-                                    const HomeRecordButton(),
-                                  ],
-                                ),
+                            if (onHome)
+                              Selector<ConversationProvider, (DateTime?, DateTime?)>(
+                                selector: (_, provider) => (provider.selectedStartDate, provider.selectedEndDate),
+                                builder: (context, range, _) {
+                                  final start = range.$1;
+                                  if (start == null) return const SizedBox.shrink();
+                                  final provider = context.read<ConversationProvider>();
+                                  return Padding(
+                                    padding: const EdgeInsets.fromLTRB(OmiSpacing.md, 0, OmiSpacing.md, OmiSpacing.xs),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: OmiDateFilterChip(
+                                        key: const ValueKey('home_date_filter'),
+                                        start: start,
+                                        end: range.$2,
+                                        onClear: () => unawaited(provider.clearDateFilter()),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            ],
-                          ),
+                            // Home shows an active call in its capture row; Tasks gets the slim bar.
+                            if (!onHome) const ActiveCallTopBar(),
+                            Expanded(
+                              child: IndexedStack(index: selectedIndex, children: _buildPages(selectedIndex)),
+                            ),
+                          ],
                         ),
-                      // Merge action bar - replaces the chat bar while conversations are selected
-                      if (onHome) const Positioned(left: 0, right: 0, bottom: 0, child: MergeActionBar()),
-                      // Task selection action bar - at the bottom of Tasks while tasks are selected.
-                      if (!onHome) const Positioned(left: 0, right: 0, bottom: 0, child: TaskSelectionActionBar()),
-                    ],
+                        if (onHome)
+                          Consumer<HomeProvider>(
+                            builder: (context, home, child) {
+                              if (home.isChatFieldFocused || home.isMemoriesSearchFieldFocused) {
+                                return const SizedBox.shrink();
+                              }
+                              return child!;
+                            },
+                            child: HomeCaptureBar(onAsk: _openChat, onRecordingDetails: _openRecordingDetails),
+                          ),
+                        // Merge action bar - replaces the chat bar while conversations are selected
+                        if (onHome) const Positioned(left: 0, right: 0, bottom: 0, child: MergeActionBar()),
+                        // Task selection action bar - at the bottom of Tasks while tasks are selected.
+                        if (!onHome) const Positioned(left: 0, right: 0, bottom: 0, child: TaskSelectionActionBar()),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -961,11 +951,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   void _openChat({bool voice = false}) {
     OmiHaptics.selection();
     PlatformManager.instance.analytics.bottomNavigationTabClicked(voice ? 'Chat Voice' : 'Chat');
-    openChatSheet(context, ChatPage(isPivotBottom: false, autoStartVoice: voice));
+    openChatSheet(context, ChatPage(isPivotBottom: false, autoStartVoice: voice, focusInputOnOpen: !voice));
   }
 
-  Widget _buildChatBar(BuildContext context) {
-    return HomeAskAnythingButton(onTap: _openChat);
+  Future<void> _openRecordingDetails() async {
+    final capture = context.read<CaptureProvider>();
+    OmiHaptics.selection();
+    final conversationId = capture.topConversationId;
+    await showNativeRecordingSheet<void>(
+      context,
+      builder: (context, nativeSheet) => LiveEpisodePage(
+        topConversationId: conversationId,
+        initialTab: LiveEpisodeTab.transcript,
+        presentedAsSheet: nativeSheet,
+      ),
+    );
   }
 
   /// Export and the completed toggle, beside the switcher while Tasks is showing.
@@ -1029,7 +1029,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
       // title gives up the 4pt the last target overhangs by. The circles stay on
       // the 16pt margin the rest of the screen uses.
       titleSpacing: NavigationToolbar.kMiddleSpacing - (kMinTapTarget - kHeaderCircleDiameter) / 2,
-      title: Row(
+      title: HomeHeaderGlass(
+          child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -1074,7 +1075,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
             ],
           ),
         ],
-      ),
+      )),
       elevation: 0,
       centerTitle: true,
     );

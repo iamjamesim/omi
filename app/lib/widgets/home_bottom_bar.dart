@@ -40,7 +40,60 @@ double homeChatBarOffset(BuildContext context) => homeBottomInset(context) + kHo
 
 /// Distance from the bottom of the screen that Home content clears to stay out from under the
 /// floating chat bar, with a little air above it.
-double homeChatBarClearance(BuildContext context) => homeChatBarOffset(context) + kHomeChatBarHeight + 20;
+double homeChatBarClearance(BuildContext context) =>
+    homeChatBarOffset(context) + HomeChatBarLayout.heightOf(context) + kHomeBottomFadeHeight;
+
+/// Home-scoped measured bar geometry; list padding follows native Dynamic Type
+/// and localization changes without coupling layout to capture authority.
+class HomeChatBarLayout extends StatefulWidget {
+  const HomeChatBarLayout({super.key, required this.child});
+  final Widget child;
+
+  static double heightOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_HomeChatBarHeight>()?.notifier?.value ?? kHomeChatBarHeight;
+
+  /// The native pill replaces Home's streaming status row once available.
+  static bool nativeControlsOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_HomeNativeCaptureControls>()?.notifier?.value ?? false;
+
+  static void updateNativeControls(BuildContext context, bool enabled) {
+    final native = context.getInheritedWidgetOfExactType<_HomeNativeCaptureControls>()?.notifier;
+    if (native != null && native.value != enabled) native.value = enabled;
+  }
+
+  static void updateHeight(BuildContext context, double height) {
+    final metrics = context.getInheritedWidgetOfExactType<_HomeChatBarHeight>()?.notifier;
+    if (metrics != null && (metrics.value - height).abs() > 0.5) metrics.value = height;
+  }
+
+  @override
+  State<HomeChatBarLayout> createState() => _HomeChatBarLayoutState();
+}
+
+class _HomeChatBarLayoutState extends State<HomeChatBarLayout> {
+  final _height = ValueNotifier<double>(kHomeChatBarHeight);
+  final _nativeControls = ValueNotifier<bool>(false);
+  @override
+  void dispose() {
+    _height.dispose();
+    _nativeControls.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _HomeNativeCaptureControls(
+        notifier: _nativeControls,
+        child: _HomeChatBarHeight(notifier: _height, child: widget.child),
+      );
+}
+
+class _HomeNativeCaptureControls extends InheritedNotifier<ValueNotifier<bool>> {
+  const _HomeNativeCaptureControls({required super.notifier, required super.child});
+}
+
+class _HomeChatBarHeight extends InheritedNotifier<ValueNotifier<double>> {
+  const _HomeChatBarHeight({required super.notifier, required super.child});
+}
 
 /// Interpolate the light fade through transparent page-coloured pixels. A zero-alpha black stop
 /// darkens intermediate gradient colours and shows up as a grey band against the light page.

@@ -131,6 +131,7 @@ class CaptureWedgeAppBar extends StatelessWidget implements PreferredSizeWidget 
     required this.state,
     this.bufferingFor,
     this.sourceLabel,
+    this.showCloseButton = false,
   });
 
   /// Injectable for tests; defaults to [CaptureWedgeMonitor.instance].
@@ -139,6 +140,7 @@ class CaptureWedgeAppBar extends StatelessWidget implements PreferredSizeWidget 
   final CaptureDisplayState state;
   final Duration? bufferingFor;
   final String? sourceLabel;
+  final bool showCloseButton;
 
   static const _live = {CaptureDisplayState.listening, CaptureDisplayState.capturing, CaptureDisplayState.recording};
 
@@ -153,6 +155,7 @@ class CaptureWedgeAppBar extends StatelessWidget implements PreferredSizeWidget 
       builder: (context, _) {
         final stalled = _live.contains(state) && CaptureRecoveryStatus.overridesHeader(wedge);
         return ConversationStateAppBar(
+          showCloseButton: showCloseButton,
           showStatus: showStatus || stalled,
           state: stalled ? CaptureDisplayState.reconnecting : state,
           bufferingFor: bufferingFor,

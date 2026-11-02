@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:omi/services/capture/capture_controller.dart';
 import 'package:omi/services/capture/capture_lifetime.dart';
 import 'package:omi/utils/enums.dart';
@@ -13,7 +15,7 @@ abstract interface class CaptureSystemSurfaceSink {
 
 /// Projects the existing capture owner into an OS presentation. Owns only the
 /// presentation clock and delivery, never audio, recovery, or mute authority.
-class CaptureSystemSurface {
+class CaptureSystemSurface extends ChangeNotifier {
   CaptureSystemSurface(this.capture, this.sink, {DateTime Function()? now}) : _now = now ?? DateTime.now;
 
   final CaptureController capture;
@@ -30,6 +32,7 @@ class CaptureSystemSurface {
   bool _closed = false;
   bool _busy = false;
   bool _ready = false;
+  bool _sinkReady = false;
   CaptureOwned? _listener;
   Timer? _heartbeat;
   Timer? _hourMark;
@@ -41,14 +44,16 @@ class CaptureSystemSurface {
     // A bounded health refresh advances the stale deadline, not the timer.
     _heartbeat = capture.lifetime.periodic(const Duration(seconds: 30), (_) => _changed(force: true));
     try {
-      await sink.start(_act);
-      if (_closed) return;
-      _ready = true;
-      _changed(force: true);
+      await sink.start(performAction);
+      _sinkReady = true;
     } catch (error) {
+      // Home still needs its presentation clock if the OS surface is unavailable.
+      // Presentation failure must never end capture or disable in-app actions.
       Logger.debug('Live Activity unavailable: $error');
-      await close();
     }
+    if (_closed) return;
+    _ready = true;
+    _changed(force: true);
   }
 
   Map<String, Object?> get snapshot {
@@ -150,9 +155,10 @@ class CaptureSystemSurface {
     final key = '$state ${value['busy']} ${value['actionFailed']}';
     if (!force && key == _lastFingerprint) return;
     _lastFingerprint = key;
+    notifyListeners();
     _armHourMark(value);
     _delivery = _delivery.then((_) async {
-      if (!_closed) await sink.publish(value);
+      if (!_closed && _sinkReady) await sink.publish(value);
     }).catchError((Object error) {
       _lastFingerprint = null;
       Logger.debug('Live Activity update failed: $error');
@@ -170,7 +176,8 @@ class CaptureSystemSurface {
     _hourMark = capture.lifetime.once(untilHour + const Duration(milliseconds: 250), () => _changed(force: true));
   }
 
-  Future<Map<String, Object?>> _act(Map<String, Object?> request) async {
+  /// The same identity-fenced action path is used by Home and OS controls.
+  Future<Map<String, Object?>> performAction(Map<String, Object?> request) async {
     final current = snapshot;
     // A tap on an old card targets an old recording or conversation revision.
     // Repeats are safe: pause/resume are idempotent and Finish bumps the revision.
@@ -234,5 +241,6 @@ class CaptureSystemSurface {
     } catch (error) {
       Logger.debug('Live Activity cleanup unavailable: $error');
     }
+    super.dispose();
   }
 }

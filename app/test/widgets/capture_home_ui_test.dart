@@ -76,13 +76,17 @@ class _Capture extends ChangeNotifier implements CaptureProvider {
   int resumes = 0;
   int phoneStarts = 0;
   Object? phoneStartFailure;
+  bool acquirePhoneOnStart = false;
+  bool phoneOwned = false;
 
   @override
-  String? get liveCaptureSource => switch (live) {
-        _Live.idle || _Live.idleDeviceConnected => null,
-        _Live.pendant || _Live.pendantPaused || _Live.pendantBatch => 'omi',
-        _ => 'phone',
-      };
+  String? get liveCaptureSource => phoneOwned
+      ? 'phone'
+      : switch (live) {
+          _Live.idle || _Live.idleDeviceConnected => null,
+          _Live.pendant || _Live.pendantPaused || _Live.pendantBatch => 'omi',
+          _ => 'phone',
+        };
   @override
   RecordingState get recordingState => interrupted
       ? RecordingState.interrupted
@@ -170,6 +174,10 @@ class _Capture extends ChangeNotifier implements CaptureProvider {
     phoneStarts++;
     final failure = phoneStartFailure;
     if (failure != null) throw failure;
+    if (acquirePhoneOnStart) {
+      phoneOwned = true;
+      notifyListeners();
+    }
   }
 
   @override
@@ -673,6 +681,23 @@ void main() {
       expect(find.text(en.phoneRecordingBlockedByPendantBatch), findsOneWidget);
       expect(capture.phoneStarts, 0);
       expect(find.text(en.recordWith), findsNothing);
+    });
+
+    testWidgets('native presenter starts with phone ownership and stays inline', (tester) async {
+      final capture = _Capture(_Live.idle)..acquirePhoneOnStart = true;
+      await pump(
+          tester,
+          HomeRecordButton(
+            openDetailsOnStart: false,
+            presentation: (start, options, finish) => TextButton(onPressed: start, child: const Text('Native Record')),
+          ),
+          capture: capture);
+      await tester.tap(find.text('Native Record'));
+      await tester.pump();
+      expect(capture.phoneStarts, 1);
+      expect(capture.liveCaptureSource, 'phone');
+      expect(find.byType(LiveEpisodePage), findsNothing);
+      expect(Navigator.of(tester.element(find.text('Native Record'))).canPop(), isFalse);
     });
 
     testWidgets('a start that fails says so and never opens the capturing page', (tester) async {

@@ -554,6 +554,8 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
     final episodesOn = episodes?.enabled == true;
     final streaming = context.select<CaptureProvider, bool>((c) => EpisodePresentation.streamingSource(c) != null);
     final episodeLive = episodesOn && streaming;
+    final nativeCaptureControls = HomeChatBarLayout.nativeControlsOf(context);
+    final showLiveEpisodeRow = episodeLive && !nativeCaptureControls;
     final filling = episodesOn ? fillingSeconds(_pendingWork.pending) : const <String, int>{};
     return Selector2<ConversationProvider, LocalRecordingsProvider, _ConversationPageSnapshot>(
       selector: (_, conversationProvider, recordingsProvider) =>
@@ -645,8 +647,9 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
           foldedNoiseByDate: folding ? convoProvider.foldedNoiseByDate : const {},
           revealedNoiseDates: folding ? convoProvider.revealedNoiseDates : const {},
         );
-        final withLive =
-            episodeLive ? _withTodayRow(builtRows, DateTime.now(), _ConversationListRowKind.liveEpisode) : builtRows;
+        final withLive = showLiveEpisodeRow
+            ? _withTodayRow(builtRows, DateTime.now(), _ConversationListRowKind.liveEpisode)
+            : builtRows;
         // Only the default view: a search or folder shows what it matched.
         final conversationRows = showRecordings && !convoProvider.isSelectionModeActive
             ? _withProcessingRows(
@@ -685,7 +688,8 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
               // The live capture row: recording, a call, or a conversation being captured. With episodes
               // on, a streaming capture is the live episode row in Today instead.
               SliverToBoxAdapter(
-                child: ConversationCaptureWidget(showsCall: true, deferStreamingToEpisode: episodeLive),
+                child: ConversationCaptureWidget(
+                    showsCall: true, deferStreamingToEpisode: episodeLive || nativeCaptureControls),
               ),
               const SliverToBoxAdapter(child: CaptureContinuityDogfoodBanner()),
               const SliverToBoxAdapter(child: SpeechProfileCardWidget()),
@@ -708,7 +712,7 @@ class _ConversationsPageState extends State<ConversationsPage> with AutomaticKee
               const SliverToBoxAdapter(child: HeldAudioHomeSection()),
               const SliverToBoxAdapter(child: YearlySwitchHomeRow()),
               // With no list yet, the live episode opens Today itself.
-              if (episodeLive && builtRows.isEmpty)
+              if (showLiveEpisodeRow && builtRows.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 10),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:omi/pages/chat/page.dart';
 import 'package:omi/ui/navigation/omi_edge_swipe.dart';
 import 'package:omi/ui/ui.dart';
+import 'package:omi/ui/native_glass_overlay.dart';
 
 /// How long the chat sheet takes to rise; it falls a little faster.
 const Duration kChatSheetRiseDuration = Duration(milliseconds: 420);
@@ -14,7 +15,7 @@ const Duration kChatSheetFallDuration = Duration(milliseconds: 280);
 /// and dims while the chat sheet rises from the bottom edge. The sheet carries an OmiCloseButton,
 /// closes on a swipe down on its header, and system back closes it.
 Future<T?> openChatSheet<T>(BuildContext context, ChatPage page) {
-  return Navigator.of(context).push<T>(ChatSheetRoute<T>(builder: (_) => page));
+  return NativeGlassOverlay.push<T>(context, ChatSheetRoute<T>(builder: (_) => page));
 }
 
 /// The chat sheet's route: not opaque, so the page underneath stays painted behind the blur.

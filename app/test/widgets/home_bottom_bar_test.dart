@@ -108,6 +108,29 @@ void main() {
     expect(chatClearance, greaterThan(chatBarOffset + kHomeChatBarHeight));
   });
 
+  testWidgets('Home content clearance follows the native bar measured height', (tester) async {
+    late BuildContext barContext;
+    late double clearance;
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(viewPadding: EdgeInsets.only(bottom: 34)),
+        child: HomeChatBarLayout(
+          child: Builder(builder: (context) {
+            barContext = context;
+            clearance = homeChatBarClearance(context);
+            return const SizedBox.shrink();
+          }),
+        ),
+      ),
+    );
+    HomeChatBarLayout.updateHeight(barContext, 300);
+    await tester.pump();
+    expect(clearance, 34 + kHomeChatBarBottomGap + 300 + kHomeBottomFadeHeight);
+    HomeChatBarLayout.updateHeight(barContext, 64);
+    await tester.pump();
+    expect(clearance, 34 + kHomeChatBarBottomGap + 64 + kHomeBottomFadeHeight);
+  });
+
   testWidgets('reserves viewPadding, which a keyboard does not collapse', (tester) async {
     // The home Scaffold sets resizeToAvoidBottomInset: false, so an open keyboard leaves the
     // system bar where it was while driving padding.bottom to zero. Pin that the shell reads

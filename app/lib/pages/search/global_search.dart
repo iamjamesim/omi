@@ -33,6 +33,7 @@ import 'package:omi/providers/folder_provider.dart';
 import 'package:omi/providers/memories_provider.dart';
 import 'package:omi/providers/people_provider.dart';
 import 'package:omi/ui/ui.dart';
+import 'package:omi/ui/native_glass_overlay.dart';
 import 'package:omi/ui/navigation/omi_edge_swipe.dart';
 import 'package:omi/utils/conversations/date_query.dart';
 import 'package:omi/utils/folders/folder_icon_mapper.dart';
@@ -51,7 +52,8 @@ const Curve kSearchDropCurve = Cubic(0.2, 0.9, 0.25, 1.08);
 /// anything is typed it shows tiles to browse by folder, recap, memory, person and place;
 /// typing searches conversations, recaps, tasks and memories at once.
 Future<void> showGlobalSearch(BuildContext context, {String? initialQuery, GlobalSearchSource? source}) {
-  return Navigator.of(context).push<void>(
+  return NativeGlassOverlay.push<void>(
+    context,
     SearchDropRoute<void>(
       builder: (_) => GlobalSearchPage(initialQuery: initialQuery, source: source ?? const ApiGlobalSearchSource()),
     ),

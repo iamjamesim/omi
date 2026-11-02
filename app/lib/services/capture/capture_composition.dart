@@ -182,7 +182,9 @@ CaptureProvider composeProductionCaptureProvider({
   }
   if (Platform.isIOS) {
     // Presentation failure must never stop capture.
-    unawaited(CaptureSystemSurface(provider, LiveActivityBridge()).start());
+    final surface = CaptureSystemSurface(provider, LiveActivityBridge());
+    provider.homeControls = surface;
+    unawaited(surface.start());
   }
   return provider;
 }
