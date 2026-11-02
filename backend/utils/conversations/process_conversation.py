@@ -2820,6 +2820,9 @@ def process_conversation(
         nonlocal recovery_minimum_fallback
         recovery_minimum_fallback = True
 
+    from utils.llm.offline_conversation_fixture import enabled as offline_fixture_enabled
+
+    offline_fixture = offline_fixture_enabled()
     structured, discarded = _get_structured(
         uid,
         language_code,
@@ -2932,7 +2935,7 @@ def process_conversation(
     if relevance is not None:
         # Server-side audit record, deliberately outside the client wire model.
         payload[RELEVANCE_DECISION_FIELD] = relevance.as_record()
-    if recovery_minimum_fallback or silent_backfill:
+    if recovery_minimum_fallback or silent_backfill or offline_fixture:
         payload[TERMINAL_NO_DERIVED_EFFECTS_FIELD] = True
     if conversation.processing_state is not None:
         # The payload merge-clears the stale state (an upgraded-then-reprocessed
@@ -2956,7 +2959,7 @@ def process_conversation(
         )
     else:
         persisted = lifecycle_service.persist_processed_conversation(uid, payload)
-    if recovery_minimum_fallback or silent_backfill or content_excluded:
+    if recovery_minimum_fallback or silent_backfill or content_excluded or offline_fixture:
         report_persistence(
             persisted,
             completed=conversation,
@@ -2972,7 +2975,8 @@ def process_conversation(
         )
         return conversation
 
-    if silent_backfill or content_excluded:
+    if silent_backfill or content_excluded or offline_fixture:
+        # Offline fixture notes must never produce memories, embeddings or app actions.
         # Historical enrichment is summary-only. No extraction/reminder, app,
         # goal, webhook, lazy-effects queue or notification can escape this seam.
         if derived_effects_disposition_observer is not None:

@@ -79,6 +79,8 @@ try:
 except ImportError:  # pragma: no cover - file-loading harnesses exec this module with stubbed packages
     _serve_agentic_notes = None
 from utils.llm.shaped_agent import Budget, Mount, Turn, route_for_uid, run_loop
+from utils.llm import offline_conversation_fixture
+from utils.observability.fallback import record_fallback
 from utils.llm.shaped_notes_transport import isolated_notes_model
 from utils.llm.model_config import FOREGROUND_REQUEST_TIMEOUT_SECONDS
 from utils.llm.prompt_cache import (
@@ -179,6 +181,11 @@ def should_discard_conversation(
     neighbor (a kept conversation within the boundary gap) is described by its
     gap and position only; none of its content enters the prompt.
     """
+    if offline_conversation_fixture.enabled():
+        # Deterministic relevance rules still run at the caller. The offline
+        # model tier preserves recognized speech without making a paid call.
+        logger.info('offline_conversation_fixture operation=relevance synthetic_summary=true')
+        return not bool(transcript and transcript.strip()) and not bool(photos)
     from config.occasion_relevance import enabled as occasion_relevance_enabled
 
     if neighbor_gap_seconds is not None and occasion_relevance_enabled():
@@ -455,6 +462,17 @@ def get_conversation_notes(
     open_loop_out: Optional[dict[str, Any]] = None,
     **kwargs: Any,
 ) -> Structured:
+    if offline_conversation_fixture.enabled():
+        record_fallback(
+            component='conversation_notes',
+            from_mode='model',
+            to_mode='offline_fixture',
+            reason='config_incomplete',
+            outcome='degraded',
+            log=logger,
+        )
+        logger.info('offline_conversation_fixture operation=notes synthetic_summary=true')
+        return offline_conversation_fixture.notes()
     if route_for_uid(uid) != 'new':
         raise RuntimeError('Shaped notes disabled; restore the previous image for legacy serving')
     return _get_shaped_conversation_notes(prefix, uid=uid, open_loop_out=open_loop_out, **kwargs)
